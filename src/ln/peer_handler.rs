@@ -298,8 +298,12 @@ impl<Descriptor: SocketDescriptor> PeerManager<Descriptor> {
 				}
 			}
 		}
-		const MSG_BUFF_SIZE: usize = 10;
+		const MSG_BUFF_SIZE: usize = 100;
 		while !peer.awaiting_write_event {
+                        if peer.pending_outbound_buffer.len() > 0 
+                        {
+                         if let Some(noder) =peer.their_node_id {
+                         println!("Outbound: {} for {}",peer.pending_outbound_buffer.len(),log_pubkey!(noder)); } }
 			if peer.pending_outbound_buffer.len() < MSG_BUFF_SIZE {
 				match peer.sync_status {
 					InitSyncTracker::NoSyncRequested => {},
@@ -350,6 +354,9 @@ impl<Descriptor: SocketDescriptor> PeerManager<Descriptor> {
 
 				let should_be_reading = peer.pending_outbound_buffer.len() < MSG_BUFF_SIZE;
 				let data_sent = descriptor.send_data(next_buff, peer.pending_outbound_buffer_first_msg_offset, should_be_reading);
+                                           if let Some(noder) =peer.their_node_id {
+                                   println!("Data sent: {} / {}  for {}",data_sent,next_buff.len(), log_pubkey!(noder) ); }
+                                   
 				peer.pending_outbound_buffer_first_msg_offset += data_sent;
 				if peer.pending_outbound_buffer_first_msg_offset == next_buff.len() { true } else { false }
 			} {
@@ -530,6 +537,7 @@ impl<Descriptor: SocketDescriptor> PeerManager<Descriptor> {
 									peer.their_node_id = Some(their_node_id);
 									insert_node_id!();
 									let mut local_features = msgs::LocalFeatures::new();
+                                                                        local_features.set_data_loss_protect();
 									if self.initial_syncs_sent.load(Ordering::Acquire) < INITIAL_SYNCS_TO_SEND {
 										self.initial_syncs_sent.fetch_add(1, Ordering::AcqRel);
 										local_features.set_initial_routing_sync();
@@ -571,6 +579,7 @@ impl<Descriptor: SocketDescriptor> PeerManager<Descriptor> {
 											return Err(PeerHandleError{ no_connection_possible: false });
 										}
 										let mut reader = ::std::io::Cursor::new(&msg_data[2..]);
+//                                                                                println!("Mtype: {}",msg_type);
 										match msg_type {
 											// Connection control:
 											16 => {
@@ -583,10 +592,10 @@ impl<Descriptor: SocketDescriptor> PeerManager<Descriptor> {
 													log_info!(self, "Peer local features required unknown version bits");
 													return Err(PeerHandleError{ no_connection_possible: true });
 												}
-												if msg.local_features.requires_data_loss_protect() {
-													log_info!(self, "Peer local features required data_loss_protect");
-													return Err(PeerHandleError{ no_connection_possible: true });
-												}
+												//if msg.local_features.requires_data_loss_protect() {
+												//	log_info!(self, "Peer local features required data_loss_protect");
+												//	return Err(PeerHandleError{ no_connection_possible: true });
+												//}
 												if msg.local_features.requires_upfront_shutdown_script() {
 													log_info!(self, "Peer local features required upfront_shutdown_script");
 													return Err(PeerHandleError{ no_connection_possible: true });
@@ -611,6 +620,7 @@ impl<Descriptor: SocketDescriptor> PeerManager<Descriptor> {
 
 												if !peer.outbound {
 													let mut local_features = msgs::LocalFeatures::new();
+                                                                                                        local_features.set_data_loss_protect(); 
 													if self.initial_syncs_sent.load(Ordering::Acquire) < INITIAL_SYNCS_TO_SEND {
 														self.initial_syncs_sent.fetch_add(1, Ordering::AcqRel);
 														local_features.set_initial_routing_sync();
@@ -818,6 +828,7 @@ impl<Descriptor: SocketDescriptor> PeerManager<Descriptor> {
 								log_bytes!(msg.temporary_channel_id));
 						let (mut descriptor, peer) = get_peer_for_forwarding!(node_id, {
 								//TODO: Drop the pending channel? (or just let it timeout, but that sucks)
+                                                               println!("TODO!!!");
 							});
 						peer.pending_outbound_buffer.push_back(peer.channel_encryptor.encrypt_message(&encode_msg!(msg, 33)));
 						self.do_attempt_write_data(&mut descriptor, peer);

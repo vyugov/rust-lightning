@@ -83,6 +83,14 @@ impl LocalFeatures {
 		}
 	}
 
+	pub(crate) fn set_data_loss_protect(&mut self) {
+		if self.flags.len() == 0 {
+			self.flags.resize(1, (1 << 1)+1);
+		} else {
+			self.flags[0] |= (1 << 1)+1;
+		}
+	}
+
 	pub(crate) fn supports_upfront_shutdown_script(&self) -> bool {
 		self.flags.len() > 0 && (self.flags[0] & (3 << 4)) != 0
 	}
@@ -1304,15 +1312,19 @@ impl<R: Read> Readable<R> for UnsignedNodeAnnouncement {
 			if addr_len <= addr_readpos { break; }
 			match Readable::read(r) {
 				Ok(Ok(addr)) => {
+                                        let mut push_me=true;
 					match addr {
 						NetAddress::IPv4 { .. } => {
 							if addresses.len() > 0 {
-								return Err(DecodeError::ExtraAddressesPerType);
+							//	return Err(DecodeError::ExtraAddressesPerType);
+                                                        //continue;
+                                                       push_me=false;
 							}
 						},
 						NetAddress::IPv6 { .. } => {
 							if addresses.len() > 1 || (addresses.len() == 1 && addresses[0].get_id() != 1) {
-								return Err(DecodeError::ExtraAddressesPerType);
+								//return Err(DecodeError::ExtraAddressesPerType);
+                                                        push_me=false;
 							}
 						},
 						NetAddress::OnionV2 { .. } => {
@@ -1330,7 +1342,8 @@ impl<R: Read> Readable<R> for UnsignedNodeAnnouncement {
 						return Err(DecodeError::BadLengthDescriptor);
 					}
 					addr_readpos += (1 + addr.len()) as u16;
-					addresses.push(addr);
+                                        if push_me
+					{ addresses.push(addr); }
 				},
 				Ok(Err(unknown_descriptor)) => {
 					excess = true;
@@ -1998,6 +2011,7 @@ mod tests {
 		if initial_routing_sync {
 			local.set_initial_routing_sync();
 		}
+                local.set_data_loss_protect();
 		let init = msgs::Init {
 			global_features: global,
 			local_features: local,

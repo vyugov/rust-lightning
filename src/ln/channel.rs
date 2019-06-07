@@ -2935,6 +2935,9 @@ impl Channel {
 			for (ref tx, index_in_block) in txn_matched.iter().zip(indexes_of_txn_matched) {
 				if tx.txid() == self.channel_monitor.get_funding_txo().unwrap().txid {
 					let txo_idx = self.channel_monitor.get_funding_txo().unwrap().index as usize;
+                                        if txo_idx >= tx.output.len() {println!("Too long, {} out of bounds",&txo_idx);}
+                                        if tx.output[txo_idx].script_pubkey != self.get_funding_redeemscript().to_v0_p2wsh() { println!("Bad script_pubkey");}
+                                        if tx.output[txo_idx].value != self.channel_value_satoshis {println!("value not {} satoshis",self.channel_value_satoshis);}
 					if txo_idx >= tx.output.len() || tx.output[txo_idx].script_pubkey != self.get_funding_redeemscript().to_v0_p2wsh() ||
 							tx.output[txo_idx].value != self.channel_value_satoshis {
 						if self.channel_outbound {
@@ -2959,7 +2962,7 @@ impl Channel {
 									// We generated a malleable funding transaction, implying we've
 									// just exposed ourselves to funds loss to our counterparty.
 									#[cfg(not(feature = "fuzztarget"))]
-									panic!("Client called ChannelManager::funding_transaction_generated with bogus transaction!");
+									println!("Client called ChannelManager::funding_transaction_generated with bogus malleable transaction!");
 								}
 							}
 						}

@@ -404,7 +404,7 @@ macro_rules! secp_verify_sig {
 	( $secp_ctx: expr, $msg: expr, $sig: expr, $pubkey: expr ) => {
 		match $secp_ctx.verify($msg, $sig, $pubkey) {
 			Ok(_) => {},
-			Err(_) => return Err(HandleError{err: "Invalid signature from remote node", action: None}),
+			Err(_) => return Err(HandleError{err: "Invalid signature from remote node", action: Some(ErrorAction::IgnoreError)}),
 		}
 	};
 }
@@ -412,6 +412,7 @@ macro_rules! secp_verify_sig {
 impl RoutingMessageHandler for Router {
 	fn handle_node_announcement(&self, msg: &msgs::NodeAnnouncement) -> Result<bool, HandleError> {
 		let msg_hash = hash_to_message!(&Sha256dHash::hash(&msg.contents.encode()[..])[..]);
+                //println!("hash: {:?}",msg_hash);
 		secp_verify_sig!(self.secp_ctx, &msg_hash, &msg.signature, &msg.contents.node_id);
 
 		if msg.contents.features.requires_unknown_bits() {

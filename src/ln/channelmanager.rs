@@ -3020,7 +3020,9 @@ impl<'a, R : ::std::io::Read> ReadableArgs<R, ChannelManagerReadArgs<'a>> for (S
 		for _ in 0..channel_count {
 			let mut channel: Channel = ReadableArgs::read(reader, args.logger.clone())?;
 			if channel.last_block_connected != last_block_hash {
-				return Err(DecodeError::InvalidValue);
+                                println!("notlastblock");
+				//return Err(DecodeError::InvalidValue);
+                               continue;
 			}
 
 			let funding_txo = channel.channel_monitor().get_funding_txo().ok_or(DecodeError::InvalidValue)?;
@@ -3039,6 +3041,7 @@ impl<'a, R : ::std::io::Read> ReadableArgs<R, ChannelManagerReadArgs<'a>> for (S
 					by_id.insert(channel.channel_id(), channel);
 				}
 			} else {
+                                println!("Nomon");  
 				return Err(DecodeError::InvalidValue);
 			}
 		}
